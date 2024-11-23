@@ -1,4 +1,4 @@
-import * as http from 'http';
+import http from 'node:http';
 
 const host = 'localhost';
 const port = 8000;
