@@ -8,52 +8,104 @@ const animes = [
   { id: 2, title: 'Naruto', author: 'Masashi Kishimoto', release: 1999 },
 ];
 
-const handleRequest = function (req, res) {
+const handleRESTAPI = function (req, res) {
   res.setHeader('Content-Type', 'application/json');
-  const urlPath = req.url.split('/');
-  const animeRoute = urlPath[1] === 'animes';
-  const id = Number(urlPath[2]);
   let body = '';
+  const urlPath = req.url.split('/');
+  const isAnimeRoute = urlPath[1] === 'animes';
+  const id = Number(urlPath[2]);
 
-  if (animeRoute) {
+  if (isAnimeRoute) {
     switch (req.method) {
+      // GET REQUEST:
       case 'GET':
         try {
+          // GET ONE:
           if (id) {
-            const getOneAnime = animes.find((el) => el.id === id);
-            if (!getOneAnime) {
+            const findAnime = animes.find((el) => el.id === id);
+            if (!findAnime) {
               res.writeHead(404);
-              res.end(JSON.stringify({ error: 'Could not find that anime' }));
+              res.end(
+                JSON.stringify({
+                  request: req.method,
+                  code: 404,
+                  message: `Could not find anime at path: http://localhost:8000${req.url}`,
+                })
+              );
               return;
             }
             res.writeHead(200);
-            res.end(JSON.stringify(getOneAnime));
+            res.end(JSON.stringify(findAnime));
           } else {
-            res.writeHead(200);
-            res.end(JSON.stringify(animes));
+            // GET ALL:
+            if (animes.length === 0) {
+              res.writeHead(404);
+              res.end(
+                JSON.stringify({
+                  request: req.method,
+                  code: 404,
+                  message: 'No animes to show: Please POST a new anime',
+                })
+              );
+            } else {
+              res.writeHead(200);
+              res.end(JSON.stringify(animes));
+            }
           }
         } catch (error) {
           res.writeHead(500);
-          res.end(JSON.stringify({ error: 'Something went wrong' }));
+          res.end(
+            JSON.stringify({
+              request: req.method,
+              code: 500,
+              message: `Internal server error: ${error.message}`,
+            })
+          );
         }
         break;
+
+      // POST REQUEST:
       case 'POST':
+        // parse body > validate body > push body onto animes array
         req.on('data', (d) => {
           body += d;
         });
         req.on('end', () => {
           try {
-            const newAnime = JSON.parse(body);
-            animes.push(newAnime);
-            res.writeHead(201);
-            res.end(JSON.stringify(animes));
+            const newAnimeObj = JSON.parse(body);
+            const isValidated =
+              newAnimeObj.id && newAnimeObj.title && newAnimeObj.author && newAnimeObj.release;
+            if (!isValidated) {
+              res.writeHead(400);
+              res.end(
+                JSON.stringify({
+                  request: req.method,
+                  code: 400,
+                  message: `Missing at least ONE of the following field: id/title/author/release`,
+                })
+              );
+              return;
+            } else {
+              animes.push(newAnimeObj);
+              res.writeHead(201);
+              res.end(JSON.stringify(animes));
+            }
           } catch (error) {
             res.writeHead(500);
-            res.end(JSON.stringify({ error: 'Something went wrong' }));
+            res.end(
+              JSON.stringify({
+                request: req.method,
+                code: 500,
+                message: `Internal server error: ${error.message}`,
+              })
+            );
           }
         });
         break;
+
+      // PUT REQUEST:
       case 'PUT':
+        // parse body > validate > change value of indexed item in array
         req.on('data', (d) => {
           body += d;
         });
@@ -61,63 +113,131 @@ const handleRequest = function (req, res) {
           try {
             if (!id) {
               res.writeHead(400);
-              res.end(JSON.stringify({ error: 'ID is required for this operation' }));
+              res.end(
+                JSON.stringify({
+                  request: req.method,
+                  code: 400,
+                  message: `No ID given for the anime you wish to change`,
+                })
+              );
               return;
             }
-            if (id) {
-              const updatedAnime = JSON.parse(body);
-              const animeIndex = animes.findIndex((el) => el.id === id);
-              if (animeIndex !== -1) {
-                animes[animeIndex] = { ...animes[animeIndex], ...updatedAnime };
-                res.writeHead(200);
-                res.end(JSON.stringify(animes));
-              } else {
-                res.writeHead(404);
-                res.end(
-                  JSON.stringify({ error: 'Could not update that anime - it may not exist' })
-                );
-              }
+            const updatedAnime = JSON.parse(body);
+            if (updatedAnime.id !== id) {
+              res.writeHead(400);
+              res.end(
+                JSON.stringify({
+                  request: req.method,
+                  code: 400,
+                  message: `Do not change ID value - tried to change value to: ${updatedAnime.id}`,
+                })
+              );
+              return;
             }
-          } catch (error) {
-            res.writeHead(500);
-            res.end(JSON.stringify({ error: 'Something went wrong' }));
-          }
-        });
-        break;
-      case 'DELETE':
-        try {
-          if (!id) {
-            res.writeHead(400);
-            res.end(JSON.stringify({ error: 'ID is required for this operation' }));
-            return;
-          }
-          if (id) {
+            const isValidated =
+              updatedAnime.id && updatedAnime.title && updatedAnime.author && updatedAnime.release;
+            if (!isValidated) {
+              res.writeHead(400);
+              res.end(
+                JSON.stringify({
+                  request: req.method,
+                  code: 400,
+                  message: `Missing at least ONE of the following field: id/title/author/release`,
+                })
+              );
+              return;
+            }
             const animeIndex = animes.findIndex((el) => el.id === id);
             if (animeIndex !== -1) {
-              animes.splice(animeIndex, 1);
+              animes[animeIndex] = { ...updatedAnime };
               res.writeHead(200);
               res.end(JSON.stringify(animes));
             } else {
               res.writeHead(404);
-              res.end(JSON.stringify({ error: 'Could not delete that anime - it may not exist!' }));
+              res.end(
+                JSON.stringify({
+                  request: req.method,
+                  code: 404,
+                  message: 'Error: Anime does not exist',
+                })
+              );
             }
+          } catch (error) {
+            res.writeHead(500);
+            res.end(
+              JSON.stringify({
+                request: req.method,
+                code: 500,
+                message: `Internal server error: ${error.message}`,
+              })
+            );
+          }
+        });
+        break;
+      // DELETE REQUEST:
+      case 'DELETE':
+        try {
+          if (!id) {
+            res.writeHead(400);
+            res.end(
+              JSON.stringify({
+                request: req.method,
+                code: 400,
+                message: `No ID given for the anime you wish to delete`,
+              })
+            );
+            return;
+          }
+
+          const animeIndex = animes.findIndex((el) => el.id === id);
+          if (animeIndex !== -1) {
+            animes.splice(animeIndex, 1);
+            res.writeHead(200);
+            res.end(JSON.stringify(animes));
+          } else {
+            res.writeHead(404);
+            res.end(
+              JSON.stringify({
+                request: req.method,
+                code: 404,
+                message: 'Error: Anime does not exist',
+              })
+            );
           }
         } catch (error) {
           res.writeHead(500);
-          res.end(JSON.stringify({ error: 'Something went wrong' }));
+          res.end(
+            JSON.stringify({
+              request: req.method,
+              code: 500,
+              message: `Internal server error: ${error.message}`,
+            })
+          );
         }
       default:
         res.writeHead(405);
-        res.end(JSON.stringify({ error: 'Method not allowed' }));
+        res.end(
+          JSON.stringify({
+            request: req.method,
+            code: 405,
+            error: 'Method not allowed',
+          })
+        );
         break;
     }
   } else {
     res.writeHead(404);
-    res.end(JSON.stringify({ error: 'Resource not found' }));
+    res.end(
+      JSON.stringify({
+        code: 404,
+        message: `incorrect path: http://localhost:8000${req.url}`,
+        'path-needed': 'http://localhost:8000/animes',
+      })
+    );
   }
 };
 
-const server = http.createServer(handleRequest);
+const server = http.createServer(handleRESTAPI);
 
 server.listen(port, host, () => {
   console.log(`server is running on http://${host}:${port}`);
