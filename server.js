@@ -6,6 +6,8 @@ const port = 8000;
 const animes = [
   { id: 1, title: 'One Piece', author: 'Eiichiro Oda', release: 1997 },
   { id: 2, title: 'Naruto', author: 'Masashi Kishimoto', release: 1999 },
+  { id: 3, title: 'Pokemon', author: 'Satoshi Tajiri', release: 1996 },
+  { id: 4, title: 'Dragonball', author: 'Akira Toriyama', release: 1984 },
 ];
 
 const handleRESTAPI = function (req, res) {
